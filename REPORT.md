@@ -52,10 +52,11 @@ make ab-test:
 ![Демонстрация зависшего server-time](/pictures/Demostrate_title.png) 
 
 3) Демонстрация балансировки
-![Демонстрация зависшего server-time](/pictures/Demonstration_server_time.png) 
+4) 
+![Демонстрация зависшего server-time](/pictures/Demostration_balance.png)
 
 ### Результаты нагрузочного тестирования:
 1) Таблица со сравнением RPC и Latency (скриншоты, поддтвеждения результатов можно найти в папке pictures)
-![Демонстрация зависшего server-time](/pictures/Demonstration_server_time.png) 
+![Демонстрация зависшего server-time](/pictures/Table_ab.png)
 
 Заметно, что балансировка через nginx позволяет увеличить RPC и уменьшить Latency, несмотря на то что, что часть времени уходит на маршрутизацию. Также, как ожидалось, кэширование позволяет значительно увеличить RPC.
