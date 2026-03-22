@@ -13,13 +13,13 @@ NGINX-down:
 	docker compose down -v
 
 GET-backend:
-	curl http://localhost:8080/api/history
+	curl http://localhost:8000/api/history
 
 GET-NGINX:		
 	curl http://localhost:8080/api/history
 
 POST-backend:
-	curl -X POST http://localhost:8080/api/generate
+	curl -X POST http://localhost:8000/api/generate
 
 POST-NGINX:
 	curl -X POST http://localhost:8080/api/generate				
