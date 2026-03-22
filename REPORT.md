@@ -41,7 +41,7 @@ make demonstration-balance:
 
 - Нагрузочное тестирование:
 ```bash
-make ab-test:
+make ab-test
 ```
 
 ### Доказательство работоспособности:
