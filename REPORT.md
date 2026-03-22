@@ -36,7 +36,7 @@ make POST-NGINX
 
 - Демнострация балансировки:
 ```bash
-make demonstration-balance:
+make demonstration-balance
 ```
 
 - Нагрузочное тестирование:
