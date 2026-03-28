@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package messenger;
+
+message Message {
+  string from_user = 1;
+  string to = 2;
+  string content = 3;
+}
+
+message ConnectRequest {
+  string username = 1;
+}
+
+service MessengerService {
+  rpc ChatStream(stream Message) returns (stream Message);
+}
