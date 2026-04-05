@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Запросить приглашение</title>
+</head>
+<body>
+    <h2>Запросить ссылку для регистрации</h2>
+     <h2>{{message}}</h2>
+    <form action="/send-invite" method="post">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required>
+        <button type="submit">Отправить</button>
+    </form>
+</body>
+</html>
