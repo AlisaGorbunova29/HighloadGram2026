@@ -1,0 +1,175 @@
+services:
+  postgres-master:
+    image: postgres:15-alpine
+    container_name: pg-master
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: messenger
+    volumes:
+      - pg-master-data:/var/lib/postgresql/data
+      - ./db/postgres/master-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./db/postgres/master-pg_hba.sh:/docker-entrypoint-initdb.d/02-pg_hba.sh
+    ports:
+      - "5432:5432"
+    command: >
+      postgres
+      -c wal_level=replica
+      -c hot_standby=on
+      -c max_wal_senders=10
+      -c max_replication_slots=10
+      -c hot_standby_feedback=on
+    networks:
+      - appnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d messenger"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres-replica:
+    image: postgres:15-alpine
+    container_name: pg-replica
+    environment:
+      PGDATA: /var/lib/postgresql/data
+      PGUSER: replicator
+      PGPASSWORD: replicator_pass
+    volumes:
+      - pg-replica-data:/var/lib/postgresql/data
+      - ./db/postgres/replica-entrypoint.sh:/replica-entrypoint.sh
+    entrypoint: ["/bin/bash", "/replica-entrypoint.sh"]
+    ports:
+      - "5433:5432"
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    networks:
+      - appnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d messenger"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-replica2:
+    image: postgres:15-alpine
+    container_name: pg-replica2
+    environment:
+      PGDATA: /var/lib/postgresql/data
+      PGUSER: replicator
+      PGPASSWORD: replicator_pass
+    volumes:
+      - pg-replica2-data:/var/lib/postgresql/data
+      - ./db/postgres/replica-entrypoint.sh:/replica-entrypoint.sh
+    entrypoint: ["/bin/bash", "/replica-entrypoint.sh"]
+    ports:
+      - "5434:5432"
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    networks:
+      - appnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d messenger"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  clickhouse-shard1:
+    image: clickhouse/clickhouse-server:24
+    container_name: ch-shard1
+    volumes:
+      - ch-shard1-data:/var/lib/clickhouse
+      - ./db/clickhouse/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    networks:
+      - appnet
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query 'SELECT 1'"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  clickhouse-shard2:
+    image: clickhouse/clickhouse-server:24
+    container_name: ch-shard2
+    volumes:
+      - ch-shard2-data:/var/lib/clickhouse
+      - ./db/clickhouse/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml
+    ports:
+      - "8124:8123"
+      - "9001:9000"
+    networks:
+      - appnet
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query 'SELECT 1'"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  clickhouse-init:
+    image: clickhouse/clickhouse-server:24
+    volumes:
+      - ./db/clickhouse/init.sh:/init.sh
+    entrypoint: ["/bin/bash", "/init.sh"]
+    depends_on:
+      clickhouse-shard1:
+        condition: service_healthy
+      clickhouse-shard2:
+        condition: service_healthy
+    networks:
+      - appnet
+
+  backend:
+    build: ./backend
+    container_name: api
+    environment:
+      DB_MASTER_URL: postgresql+asyncpg://admin:admin@postgres-master:5432/messenger
+      DB_REPLICA_URLS: postgresql+asyncpg://admin:admin@pg-replica:5432/messenger,postgresql+asyncpg://admin:admin@pg-replica2:5432/messenger
+      CLICKHOUSE_URL: http://clickhouse-shard1:8123
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+      postgres-replica:
+        condition: service_healthy
+      postgres-replica2:
+        condition: service_healthy
+      clickhouse-init:
+        condition: service_completed_successfully
+    networks:
+      - appnet
+    command: >
+      sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - appnet
+
+volumes:
+  pg-master-data:
+  pg-replica-data:
+  pg-replica2-data:
+  ch-shard1-data:
+  ch-shard2-data:
+
+networks:
+  appnet:
+    driver: bridge
